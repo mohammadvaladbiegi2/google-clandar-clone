@@ -1,21 +1,23 @@
-
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { useEffect } from 'react';
 
 interface Event {
     id: string;
     date: string;
     title: string;
+    guests: string[];  // مهمان‌ها
+    time: string;      // ساعت
+    description: string
+    meetLink: string
 }
 
 interface CalendarState {
-    events: Event[];
+    events: Event[] | [];
     selectedDate: string | null;
-    showModal: boolean;
+    showAddEventModal: boolean;  // اضافه کردن این بخش
     editingEventId: string | null;
     setSelectedDate: (date: string) => void;
-    setShowModal: (show: boolean) => void;
+    setShowAddEventModal: (show: boolean) => void;
     addEvent: (event: Omit<Event, 'id'>) => void;
     editEvent: (id: string, updatedEvent: Omit<Event, 'id'>) => void;
     deleteEvent: (id: string) => void;
@@ -25,44 +27,38 @@ interface CalendarState {
 export const useCalendarStore = create<CalendarState>((set) => ({
     events: [],
     selectedDate: null,
-    showModal: false,
+    showAddEventModal: false,  // اینجا هم مقدار اولیه را اضافه کنید
     editingEventId: null,
-    setSelectedDate: (date) => set({ selectedDate: date }),
-    setShowModal: (show) => set({ showModal: show }),
+
+    setSelectedDate: (date) => set(() => ({ selectedDate: date })),
+    setShowAddEventModal: (show) => set(() => ({ showAddEventModal: show })),  // تابع اینجا قرار دارد
+
+    // افزودن رویداد جدید
     addEvent: (event) =>
-        set((state) => ({
-            events: [...state.events, { ...event, id: uuidv4() }], // استفاده از uuid برای تولید id
-        })),
+        set((prevState) => {
+            const newEvent = { ...event, id: uuidv4() };
+            const newEvents = [...(prevState.events || []), newEvent];
+            localStorage.setItem("events", JSON.stringify(newEvents));
+            return { events: newEvents };
+        }),
+
+    // ویرایش رویداد
     editEvent: (id, updatedEvent) =>
-        set((state) => ({
-            events: state.events.map((event) =>
+        set((prevState) => {
+            const newEvents = (prevState.events || []).map((event) =>
                 event.id === id ? { ...event, ...updatedEvent } : event
-            ),
-        })),
+            );
+            localStorage.setItem("events", JSON.stringify(newEvents));
+            return { events: newEvents };
+        }),
+
+    // حذف رویداد
     deleteEvent: (id) =>
-        set((state) => ({
-            events: state.events.filter((event) => event.id !== id),
-        })),
-    setEditingEventId: (id) => set({ editingEventId: id }),
+        set((prevState) => {
+            const newEvents = (prevState.events || []).filter((event) => event.id !== id);
+            localStorage.setItem("events", JSON.stringify(newEvents));
+            return { events: newEvents };
+        }),
+
+    setEditingEventId: (id) => set(() => ({ editingEventId: id })),
 }));
-
-// Hook جداگانه برای مدیریت localStorage
-export const usePersistedEvents = () => {
-    const { events, addEvent, editEvent, deleteEvent } = useCalendarStore();
-
-    // خواندن اطلاعات از localStorage هنگام بارگذاری صفحه
-    useEffect(() => {
-        const storedEvents = localStorage.getItem('events');
-        if (storedEvents) {
-            const parsedEvents = JSON.parse(storedEvents);
-            parsedEvents.forEach((event: Event) => {
-                addEvent(event); // اضافه کردن رویدادها به state
-            });
-        }
-    }, [addEvent]);
-
-    // ذخیره‌سازی تغییرات در localStorage
-    useEffect(() => {
-        localStorage.setItem('events', JSON.stringify(events));
-    }, [events]);
-};
