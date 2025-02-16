@@ -7,10 +7,10 @@ import { VideoCameraOutlined } from '@ant-design/icons';
 import moment from 'moment';
 
 const EditEventModal = () => {
-    const { events, editingEventId, editEvent, setEditingEventId } = useCalendarStore();
+    const { events, editingEventId, editEvent, deleteEvent, setEditingEventId } = useCalendarStore();
     const [form] = Form.useForm();
-    const [guests, setGuests] = useState<string[]>([]); // حالت برای نگهداری مهمان‌ها
-    const [guestEmail, setGuestEmail] = useState(''); // ایمیل مهمان به صورت state برای ورودی
+    const [guests, setGuests] = useState<string[]>([]);
+    const [guestEmail, setGuestEmail] = useState('');
 
     const currentEvent = events.find((event) => event.id === editingEventId);
 
@@ -18,17 +18,16 @@ const EditEventModal = () => {
         if (currentEvent) {
             form.setFieldsValue({
                 title: currentEvent.title,
-                date: moment(currentEvent.date), // تاریخ انتخاب‌شده
-                time: moment(currentEvent.time, 'HH:mm'), // ساعت انتخاب‌شده
-                description: currentEvent.description || '', // توضیحات
-                meetLink: currentEvent.meetLink || '', // لینک Google Meet
+                date: moment(currentEvent.date),
+                time: moment(currentEvent.time, 'HH:mm'),
+                description: currentEvent.description || '',
+                meetLink: currentEvent.meetLink || '',
             });
-            setGuests(currentEvent.guests || []); // مهمان‌ها
+            setGuests(currentEvent.guests || []);
         }
     }, [currentEvent, form]);
 
     const handleOk = () => {
-
         form.validateFields().then((values) => {
             const updatedEvent = {
                 title: values.title,
@@ -39,39 +38,34 @@ const EditEventModal = () => {
                 meetLink: values.meetLink,
             };
             editEvent(editingEventId!, updatedEvent);
-            setEditingEventId(null);
-            form.resetFields();
-            setGuests([]); // پاک کردن مهمان‌ها
-            setGuestEmail(''); // پاک کردن ورودی ایمیل مهمان
+            closeModal();
         });
     };
 
-    const handleCancel = () => {
-        setEditingEventId(null);
-        form.resetFields();
-        setGuests([]); // پاک کردن مهمان‌ها
-        setGuestEmail(''); // پاک کردن ورودی ایمیل مهمان
-    };
-
-    const handleAddGuest = (email: string) => {
-        if (email && !guests.includes(email)) {
-            setGuests([...guests, email]);
-            setGuestEmail(''); // بعد از اضافه کردن ایمیل ورودی را پاک می‌کنیم
+    const handleDelete = () => {
+        if (editingEventId) {
+            deleteEvent(editingEventId);
+            closeModal();
         }
     };
 
-    const handleDeleteGuest = (email: string) => {
-        setGuests(guests.filter((guest) => guest !== email));
+    const closeModal = () => {
+        setEditingEventId(null);
+        form.resetFields();
+        setGuests([]);
+        setGuestEmail('');
     };
 
     return (
         <Modal
             title="Edit Event"
             open={!!editingEventId}
-            onOk={handleOk}
-            onCancel={handleCancel}
+            onCancel={closeModal}
             footer={[
-                <Button key="back" onClick={handleCancel}>
+                <Button key="delete" danger onClick={handleDelete}>
+                    Delete
+                </Button>,
+                <Button key="back" onClick={closeModal}>
                     Cancel
                 </Button>,
                 <Button key="submit" type="primary" onClick={handleOk}>
@@ -80,7 +74,6 @@ const EditEventModal = () => {
             ]}
         >
             <Form form={form} layout="vertical">
-                {/* عنوان رویداد */}
                 <Form.Item
                     label="Event Title"
                     name="title"
@@ -89,7 +82,6 @@ const EditEventModal = () => {
                     <Input placeholder="Enter event title" />
                 </Form.Item>
 
-                {/* تاریخ و ساعت */}
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item
@@ -111,7 +103,6 @@ const EditEventModal = () => {
                     </Col>
                 </Row>
 
-                {/* مهمان‌ها */}
                 <Form.Item
                     label="Guests"
                     name="guestEmail"
@@ -129,7 +120,8 @@ const EditEventModal = () => {
                                 placeholder="Add guest email"
                                 onPressEnter={() => {
                                     if (form.getFieldError('guestEmail').length === 0) {
-                                        handleAddGuest(guestEmail);
+                                        setGuests([...guests, guestEmail]);
+                                        setGuestEmail('');
                                     }
                                 }}
                             />
@@ -139,7 +131,8 @@ const EditEventModal = () => {
                                 type="dashed"
                                 onClick={() => {
                                     if (form.getFieldError('guestEmail').length === 0) {
-                                        handleAddGuest(guestEmail);
+                                        setGuests([...guests, guestEmail]);
+                                        setGuestEmail('');
                                     }
                                 }}
                                 block
@@ -149,25 +142,18 @@ const EditEventModal = () => {
                         </Col>
                     </Row>
                 </Form.Item>
-                <div className='my-3'>
+                <div className="my-3">
                     {guests.map((email) => (
-                        <Tag
-                            key={email}
-                            closable
-                            onClose={() => handleDeleteGuest(email)}
-                            className="mr-2"
-                        >
+                        <Tag key={email} closable onClose={() => setGuests(guests.filter((g) => g !== email))}>
                             {email}
                         </Tag>
                     ))}
                 </div>
 
-                {/* لینک Google Meet */}
                 <Form.Item label="Google Meet Link" name="meetLink">
                     <Input prefix={<VideoCameraOutlined />} placeholder="Add Google Meet link" />
                 </Form.Item>
 
-                {/* توضیحات */}
                 <Form.Item label="Description" name="description">
                     <Input.TextArea rows={4} placeholder="Event description (optional)" />
                 </Form.Item>
